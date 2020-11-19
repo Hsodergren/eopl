@@ -1,0 +1,12 @@
+(library
+ (name lib)
+ (preprocess (pps ppx_deriving.show)))
+
+(menhir
+ (modules parser)
+ (merge_into parser)
+ (flags "-v"))
+
+(ocamllex
+ (modules lexer)
+ (mode standard))

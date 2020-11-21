@@ -44,6 +44,7 @@ let (<>>) = cmp (>) (>) "gt"
 let (<<>) = cmp (<) (<) "lt"
 
 let rec eval_env ast env =
+  print_endline @@ show ast;
   match ast with
   | BinOp (f,e1,e2) -> begin
       match eval_env e1 env, eval_env e2 env with

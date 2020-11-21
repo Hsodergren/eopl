@@ -28,6 +28,7 @@ rule tokenize = parse
   | "cdr" {CDR}
   | "null?" {NULL}
   | "list" {LIST}
+  | "proc" {PROC}
   | "unpack" {UNPACK}
   | "greater?" {GT}
   | "less?" {LT}

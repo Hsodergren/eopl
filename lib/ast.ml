@@ -2,6 +2,7 @@
 type value =
   | Int of int [@printer fun fmt -> fprintf fmt "%d"]
   | Bool of bool [@printer fun fmt -> fprintf fmt "%b"]
+  | Proc of (value -> value)
   | Nil [@printer fun fmt () -> fprintf fmt "Nil"]
   | Cons of t * t [@printer fun fmt (a,b) -> fprintf fmt "(%s, %s)" (show a) (show b)]
 [@@deriving show {with_path = false}]
@@ -14,6 +15,8 @@ and t =
   | LetStar of (char * t) list * t
   | Unpack of char list * t * t
   | BinOp of bin_op * t * t
+  | Procedure of char * t
+  | Apply of t * t
   | Zero of t
   | Car of t
   | Cdr of t
@@ -78,9 +81,21 @@ let rec eval_env ast env =
       | Some v -> Val v
       | None -> failwith @@ Printf.sprintf "%c not in environment" c
     end
+  | Procedure (c,body) -> begin
+      Val (Proc (fun v ->
+          match eval_env body (Env.extend c v env) with
+          | Val v -> v
+          | _ -> failwith "procedure must return value"
+        ))
+  end
+  | Apply (e1,e2) -> begin
+      match eval_env e1 env, eval_env e2 env with
+      | Val (Proc f), Val v -> Val (f v)
+      | _, _ -> failwith "first eval must be procedure"
+    end
   | Val s as v -> begin
       match s with
-      | Int _ | Bool _ | Nil -> v
+      | Int _ | Bool _ | Nil | Proc _ -> v
       | Cons (e1,e2) -> Val(Cons(eval_env e1 env, eval_env e2 env))
     end
   | Zero e -> begin

@@ -6,6 +6,7 @@
 %token <bool> BOOL
 %token <char> ID
 %token NIL CONS
+%token PROC
 %token COMMA LPAREN RPAREN
 %token ASSIGN
 %token EQ GT LT
@@ -26,6 +27,7 @@ program	:
 
 exp:
   | IF pred=exp e1=exp e2=exp {If (pred,e1,e2)}
+  | LPAREN e1=exp e2=exp RPAREN {Apply (e1,e2)}
   | LPAREN e=exp RPAREN {e}
   | NEG LPAREN e=exp RPAREN {Neg e}
   | MINUS LPAREN e1=exp COMMA e2=exp RPAREN {BinOp ((<->), e1, e2)}
@@ -38,6 +40,7 @@ exp:
   | CAR LPAREN e=exp RPAREN {Car e}
   | CDR LPAREN e=exp RPAREN {Cdr e}
   | NULL LPAREN e=exp RPAREN {Null e}
+  | PROC LPAREN c=ID RPAREN body=exp {Procedure (c,body)}
   | LIST LPAREN es=explist RPAREN {Val (es)}
   | LET c=ID ASSIGN e1=exp IN e2=exp {Let (c,e1,e2)}
   | LETSTAR es=assignlist IN body=exp {LetStar (List.rev es,body)}

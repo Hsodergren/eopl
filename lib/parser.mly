@@ -27,8 +27,14 @@ program	:
 
 exp:
   | IF pred=exp e1=exp e2=exp {If (pred,e1,e2)}
-  | LPAREN e1=exp e2=exp RPAREN {Apply (e1,e2)}
-  | LPAREN e=exp RPAREN {e}
+  | LPAREN e1=exp es=explist RPAREN
+	{
+	  List.fold_left (fun acc v -> Apply(acc, v)) e1 es
+	}
+  | PROC LPAREN cs=idlist_comma RPAREN body=exp
+	{
+	  List.fold_right (fun v acc -> Procedure (v, acc)) cs body
+	}
   | LBRACK e=exp RBRACK {e}
   | NEG LPAREN e=exp RPAREN {Neg e}
   | MINUS LPAREN e1=exp COMMA e2=exp RPAREN {BinOp ((<->), e1, e2)}
@@ -41,8 +47,7 @@ exp:
   | CAR LPAREN e=exp RPAREN {Car e}
   | CDR LPAREN e=exp RPAREN {Cdr e}
   | NULL LPAREN e=exp RPAREN {Null e}
-  | PROC LPAREN c=ID RPAREN body=exp {Procedure (c,body)}
-  | LIST LPAREN es=explist RPAREN {Val (es)}
+  | LIST LPAREN es=explist_comma RPAREN {Val (es)}
   | LET c=ID ASSIGN e1=exp IN e2=exp {Let (c,e1,e2)}
   | LETSTAR es=assignlist IN body=exp {LetStar (List.rev es,body)}
   | ZERO LPAREN e=exp RPAREN {Zero e}
@@ -57,11 +62,19 @@ idlist:
   | {[]}
   | c=ID cs=idlist {c::cs}
 
+idlist_comma:
+  | c=ID {[c]}
+  | c=ID COMMA cs=idlist_comma {c::cs}
+
 assignlist:
   | {[]}
   | c=ID ASSIGN e=exp l=assignlist {(c,e)::l}
 
 explist:
+  | e=exp {[e]}
+  | e=exp es=explist {e::es}
+
+explist_comma:
   | {Nil}
   | e=exp {Cons (e, Val (Nil))}
-  | e=exp COMMA es=explist {Cons (e, Val (es))}
+  | e=exp COMMA es=explist_comma {Cons (e, Val (es))}

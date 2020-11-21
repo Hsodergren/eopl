@@ -2,7 +2,7 @@
 open Parser
 }
 
-let whitespace = " " | "\t"
+let whitespace = " " | "\t" | "\n"
 let number = ['0'-'9']
 let lowercase = ['a'-'z']
 

@@ -11,18 +11,18 @@ and bin_op = (value -> value -> value) [@@deriving show]
 
 and t =
   | If of t * t * t
-  | Let of char * t * t
-  | LetStar of (char * t) list * t
-  | Unpack of char list * t * t
+  | Let of string * t * t
+  | LetStar of (string * t) list * t
+  | Unpack of string list * t * t
   | BinOp of bin_op * t * t
-  | Procedure of char * t
+  | Procedure of string * t
   | Apply of t * t
   | Zero of t
   | Car of t
   | Cdr of t
   | Null of t
   | Neg of t
-  | Var of char
+  | Var of string
   | Val of value [@printer fun fmt v -> fprintf fmt "%s" (show_value v)]
 [@@deriving show]
 
@@ -79,7 +79,7 @@ let rec eval_env ast env =
   | Var c -> begin
       match Env.get c env with
       | Some v -> Val v
-      | None -> failwith @@ Printf.sprintf "%c not in environment" c
+      | None -> failwith @@ Printf.sprintf "%s not in environment" c
     end
   | Procedure (c,body) -> begin
       Val (Proc (fun v ->

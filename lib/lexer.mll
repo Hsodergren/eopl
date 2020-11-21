@@ -5,9 +5,12 @@ open Parser
 let whitespace = " " | "\t" | "\n"
 let number = ['0'-'9']
 let lowercase = ['a'-'z']
+let alphanumeric = ['a'-'z' '0'-'9']
 
 rule tokenize = parse
   | "if" {IF}
+  | "then" {THEN}
+  | "else" {ELSE}
   | "minus" {NEG}
   | "let" {LET}
   | "let*" {LETSTAR}
@@ -16,8 +19,6 @@ rule tokenize = parse
   | "[" {LBRACK}
   | ")" {RPAREN}
   | "]" {RBRACK}
-  | number+ as i { INT (int_of_string i) }
-  | lowercase as c { ID (c) }
   | "," { COMMA }
   | "=" {ASSIGN}
   | "true" {BOOL true}
@@ -38,5 +39,7 @@ rule tokenize = parse
   | "+" {PLUS}
   | "*" {MULT}
   | "/" {DIV}
+  | number+ as i { INT (int_of_string i) }
+  | alphanumeric+ as c { ID c }
   | whitespace {tokenize lexbuf}
   | eof {EOF}

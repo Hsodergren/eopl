@@ -4,7 +4,7 @@
 %token EOF
 %token <int> INT
 %token <bool> BOOL
-%token <char> ID
+%token <string> ID
 %token NIL CONS
 %token PROC
 %token COMMA LPAREN RPAREN LBRACK RBRACK
@@ -12,7 +12,7 @@
 %token EQ GT LT
 %token MINUS PLUS MULT DIV NEG
 %token CAR CDR NULL
-%token IF
+%token IF THEN ELSE
 %token LIST
 %token LET IN LETSTAR
 %token ZERO
@@ -26,7 +26,7 @@ program	:
   | exp EOF {$1}
 
 exp:
-  | IF pred=exp e1=exp e2=exp {If (pred,e1,e2)}
+  | IF pred=exp THEN e1=exp ELSE e2=exp {If (pred,e1,e2)}
   | LPAREN e1=exp es=explist RPAREN
 	{
 	  List.fold_left (fun acc v -> Apply(acc, v)) e1 es
@@ -56,6 +56,7 @@ exp:
   | NIL {Val (Nil)}
   | c = ID {Var c}
   | b = BOOL {Val (Bool b)}
+  | MINUS i = INT {Val (Int (-i))}
   | i = INT {Val (Int i)}
 
 idlist:

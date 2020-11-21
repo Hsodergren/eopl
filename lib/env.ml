@@ -1,4 +1,4 @@
-type 'a t = (char * 'a) list
+type 'a t = (string * 'a) list
 
 let empty = []
 

@@ -3,6 +3,6 @@ type 'a t
 
 val empty: 'a t
 
-val extend: char -> 'a -> 'a t -> 'a t
+val extend: string -> 'a -> 'a t -> 'a t
 
-val get: char -> 'a t -> 'a option
+val get: string -> 'a t -> 'a option

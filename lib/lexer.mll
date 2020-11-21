@@ -13,7 +13,9 @@ rule tokenize = parse
   | "let*" {LETSTAR}
   | "in" {IN}
   | "(" {LPAREN}
+  | "[" {LBRACK}
   | ")" {RPAREN}
+  | "]" {RBRACK}
   | number+ as i { INT (int_of_string i) }
   | lowercase as c { ID (c) }
   | "," { COMMA }

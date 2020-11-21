@@ -7,7 +7,7 @@
 %token <char> ID
 %token NIL CONS
 %token PROC
-%token COMMA LPAREN RPAREN
+%token COMMA LPAREN RPAREN LBRACK RBRACK
 %token ASSIGN
 %token EQ GT LT
 %token MINUS PLUS MULT DIV NEG
@@ -29,6 +29,7 @@ exp:
   | IF pred=exp e1=exp e2=exp {If (pred,e1,e2)}
   | LPAREN e1=exp e2=exp RPAREN {Apply (e1,e2)}
   | LPAREN e=exp RPAREN {e}
+  | LBRACK e=exp RBRACK {e}
   | NEG LPAREN e=exp RPAREN {Neg e}
   | MINUS LPAREN e1=exp COMMA e2=exp RPAREN {BinOp ((<->), e1, e2)}
   | PLUS LPAREN e1=exp COMMA e2=exp RPAREN {BinOp ((<+>), e1, e2)}

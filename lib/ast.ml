@@ -11,8 +11,13 @@ and bin_op = (value -> value -> value) [@@deriving show]
 and t =
   | If of t * t * t
   | Let of char * t * t
+  | LetStar of (char * t) list * t
+  | Unpack of char list * t * t
   | BinOp of bin_op * t * t
   | Zero of t
+  | Car of t
+  | Cdr of t
+  | Null of t
   | Neg of t
   | Var of char
   | Val of value [@printer fun fmt v -> fprintf fmt "%s" (show_value v)]
@@ -45,6 +50,21 @@ let rec eval_env ast env =
       | Val v1, Val v2 -> Val (f v1 v2)
       | _ -> failwith "invalid binop"
     end
+  | Car e -> begin
+      match eval_env e env with
+      | Val (Cons (e,_)) -> eval_env e env
+      | _ -> failwith "car only valid on cons"
+    end
+  | Cdr e -> begin
+      match eval_env e env with
+      | Val(Cons (_,e)) -> eval_env e env
+      | _ -> failwith "cdr only valid on cons"
+    end
+  | Null e -> begin
+      match eval_env e env with
+      | Val (Nil) -> Val (Bool true)
+      | _ -> Val (Bool false)
+    end
   | If (pred,e1,e2) -> begin
       let eval_pred = eval_env pred env in
       match eval_pred with
@@ -57,7 +77,11 @@ let rec eval_env ast env =
       | Some v -> Val v
       | None -> failwith @@ Printf.sprintf "%c not in environment" c
     end
-  | Val _ as v -> v
+  | Val s as v -> begin
+      match s with
+      | Int _ | Bool _ | Nil -> v
+      | Cons (e1,e2) -> Val(Cons(eval_env e1 env, eval_env e2 env))
+    end
   | Zero e -> begin
       match eval_env e env with
       | Val(Int v) -> Val (Bool (v = 0))
@@ -72,6 +96,17 @@ let rec eval_env ast env =
     match eval_env v env with
     | Val a -> eval_env body (Env.extend c a env)
     | _ -> failwith "let value not value"
+  end
+  | LetStar ((c,t)::tl,body) -> eval_env (LetStar (tl, Let(c,t,body))) env
+  | LetStar ([],body) -> eval_env body env
+  | Unpack (cs,t,body) -> begin
+    let t = eval_env t env in
+    match cs,t with
+    | [],Val Nil -> eval_env body env
+    | c::cs', Val (Cons (e1, e2)) -> eval_env (Unpack (cs', e2, Let(c,e1,body))) env
+    | [], Val( Cons _) -> failwith "too many values in list"
+    | _, Val (Nil) -> failwith "too many variables on left hand side"
+    | _ -> failwith "Invalid value"
   end
 
 let eval ast =

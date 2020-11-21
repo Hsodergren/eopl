@@ -5,13 +5,17 @@
 %token <int> INT
 %token <bool> BOOL
 %token <char> ID
+%token NIL CONS
 %token COMMA LPAREN RPAREN
 %token ASSIGN
 %token EQ GT LT
 %token MINUS PLUS MULT DIV NEG
+%token CAR CDR NULL
 %token IF
-%token LET IN
+%token LIST
+%token LET IN LETSTAR
 %token ZERO
+%token UNPACK
 
 %start <Ast.t> program
 
@@ -31,8 +35,29 @@ exp:
   | EQ LPAREN e1=exp COMMA e2=exp RPAREN {BinOp ((<=>), e1, e2)}
   | GT LPAREN e1=exp COMMA e2=exp RPAREN {BinOp ((<>>), e1, e2)}
   | LT LPAREN e1=exp COMMA e2=exp RPAREN {BinOp ((<<>), e1, e2)}
+  | CAR LPAREN e=exp RPAREN {Car e}
+  | CDR LPAREN e=exp RPAREN {Cdr e}
+  | NULL LPAREN e=exp RPAREN {Null e}
+  | LIST LPAREN es=explist RPAREN {Val (es)}
   | LET c=ID ASSIGN e1=exp IN e2=exp {Let (c,e1,e2)}
+  | LETSTAR es=assignlist IN body=exp {LetStar (List.rev es,body)}
   | ZERO LPAREN e=exp RPAREN {Zero e}
+  | UNPACK cs=idlist ASSIGN e=exp IN body=exp {Unpack (cs,e,body)}
+  | CONS LPAREN e1=exp COMMA e2=exp RPAREN {Val (Cons(e1,e2))}
+  | NIL {Val (Nil)}
   | c = ID {Var c}
   | b = BOOL {Val (Bool b)}
   | i = INT {Val (Int i)}
+
+idlist:
+  | {[]}
+  | c=ID cs=idlist {c::cs}
+
+assignlist:
+  | {[]}
+  | c=ID ASSIGN e=exp l=assignlist {(c,e)::l}
+
+explist:
+  | {Nil}
+  | e=exp {Cons (e, Val (Nil))}
+  | e=exp COMMA es=explist {Cons (e, Val (es))}

@@ -1,7 +1,10 @@
 
 type value =
-  | Int of int
-  | Bool of bool [@@deriving show]
+  | Int of int [@printer fun fmt -> fprintf fmt "%d"]
+  | Bool of bool [@printer fun fmt -> fprintf fmt "%b"]
+  | Nil [@printer fun fmt () -> fprintf fmt "Nil"]
+  | Cons of t * t [@printer fun fmt (a,b) -> fprintf fmt "(%s, %s)" (show a) (show b)]
+[@@deriving show {with_path = false}]
 
 and bin_op = (value -> value -> value) [@@deriving show]
 
@@ -12,7 +15,8 @@ and t =
   | Zero of t
   | Neg of t
   | Var of char
-  | Val of value [@@deriving show]
+  | Val of value [@printer fun fmt v -> fprintf fmt "%s" (show_value v)]
+[@@deriving show]
 
 let int_bin_op f str v1 v2 =
   match v1, v2 with

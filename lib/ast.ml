@@ -35,7 +35,6 @@ and t =
   | BinOp of bin_op * t * t
   | LetRec of {
       name : string;
-      bound : string;
       let_body : t;
       body : t;
     }
@@ -103,6 +102,10 @@ let rec eval_env ast env : value =
   | LetStar ((c, t) :: tl, body) ->
       eval_env (LetStar (tl, Let (c, t, body))) env
   | LetStar ([], body) -> eval_env body env
+  | LetRec { name; let_body = Procedure (bound, let_body); body } ->
+      eval_env body
+        (Env.extend name (Rec { (* name;  *) bound; body = let_body }) env)
+  | LetRec _ -> failwith "not prodecure body error"
   | Unpack (cs, t, body) -> (
       let t = eval_env t env in
       match (cs, t) with
@@ -113,9 +116,6 @@ let rec eval_env ast env : value =
       | _, Nil -> failwith "too many variables on left hand side"
       | _ -> failwith "Invalid value")
   | ConsT (t1, t2) -> Cons (eval_env t1 env, eval_env t2 env)
-  | LetRec { name; bound; let_body; body } ->
-      eval_env body
-        (Env.extend name (Rec { (* name;  *) bound; body = let_body }) env)
 
 and eval_bop bop v1 v2 =
   match (bop, v1, v2) with

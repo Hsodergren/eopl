@@ -57,9 +57,10 @@ let () =
             "letrec double(x) = if zero?(x) then 0 else -((double -(x,1)), -2) \
              in (double 6)"
             12;
-          test_int "letrec4"
-            "letrec double(x,y) = if zero?(x) then 0 else +(-((double -(x,1)), \
-             -2),1) in (double 6)"
-            12;
+          test_int "letrec4" "letrec double(x,y) = +(x,x) in (double 1 100)" 2;
+          test_int "letrec5"
+            "let double = proc(x) letrec double(x,y) = if zero?(x) then y else \
+             (double -(x,1) +(y,2)) in (double x 0) in (double 10)"
+            20;
         ] );
     ]

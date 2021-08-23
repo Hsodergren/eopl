@@ -50,7 +50,11 @@ exp:
   | LIST LPAREN es=explist_comma RPAREN {es}
   | LET c=ID ASSIGN e1=exp IN e2=exp {Let (c,e1,e2)}
   | LETSTAR es=assignlist IN body=exp {LetStar (List.rev es,body)}
-  | LETREC name=ID LPAREN bound=ID RPAREN ASSIGN let_body=exp IN body=exp { LetRec{name;bound;let_body;body}}
+  | LETREC name=ID LPAREN cs=idlist_comma RPAREN ASSIGN let_body=exp IN body=exp
+    {
+      let let_body = List.fold_right (fun v acc -> Procedure(v, acc)) cs let_body in
+      LetRec{name;let_body;body}
+    }
   | ZERO LPAREN e=exp RPAREN {Zero e}
   | UNPACK cs=idlist ASSIGN e=exp IN body=exp {Unpack (cs,e,body)}
   | CONS LPAREN e1=exp COMMA e2=exp RPAREN {ConsT(e1,e2)}

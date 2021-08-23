@@ -1,7 +1,16 @@
-type value =
+type env_val =
+  | Value of value
+  | Rec of {
+      (* name : string; *)
+      bound : string;
+      body : t;
+    }
+
+and value =
   | Int of int [@printer fun fmt -> fprintf fmt "%d"]
   | Bool of bool [@printer fun fmt -> fprintf fmt "%b"]
-  | Proc of string * t * value Env.t [@printer fun fmt _ -> fprintf fmt "<fun>"]
+  | Proc of string * t * env_val Env.t
+      [@printer fun fmt _ -> fprintf fmt "<fun>"]
   | Nil [@printer fun fmt () -> fprintf fmt "Nil"]
   | Cons of value * value
       [@printer
@@ -24,6 +33,12 @@ and t =
   | LetStar of (string * t) list * t
   | Unpack of string list * t * t
   | BinOp of bin_op * t * t
+  | LetRec of {
+      name : string;
+      bound : string;
+      let_body : t;
+      body : t;
+    }
   | Procedure of string * t
   | ConsT of t * t
   | Apply of t * t
@@ -65,12 +80,14 @@ let rec eval_env ast env : value =
       | _ -> failwith "if predicate not bool")
   | Var c -> (
       match Env.get c env with
-      | Some v -> v
+      | Some (Value v) -> v
+      | Some (Rec { bound; body; _ }) -> Proc (bound, body, env)
       | None -> failwith @@ Printf.sprintf "%s not in environment" c)
   | Procedure (c, body) -> Proc (c, body, env)
   | Apply (e1, e2) -> (
       match (eval_env e1 env, eval_env e2 env) with
-      | Proc (c, body, cap_env), v -> eval_env body (Env.extend c v cap_env)
+      | Proc (c, body, cap_env), v ->
+          eval_env body (Env.extend c (Value v) cap_env)
       | _, _ -> failwith "first eval must be procedure")
   | Val s -> s
   | Zero e -> (
@@ -81,7 +98,8 @@ let rec eval_env ast env : value =
       match eval_env e env with
       | Int i -> Int (-i)
       | _ -> failwith "Neg not int")
-  | Let (c, v, body) -> eval_env body (Env.extend c (eval_env v env) env)
+  | Let (c, v, body) ->
+      eval_env body (Env.extend c (Value (eval_env v env)) env)
   | LetStar ((c, t) :: tl, body) ->
       eval_env (LetStar (tl, Let (c, t, body))) env
   | LetStar ([], body) -> eval_env body env
@@ -95,6 +113,9 @@ let rec eval_env ast env : value =
       | _, Nil -> failwith "too many variables on left hand side"
       | _ -> failwith "Invalid value")
   | ConsT (t1, t2) -> Cons (eval_env t1 env, eval_env t2 env)
+  | LetRec { name; bound; let_body; body } ->
+      eval_env body
+        (Env.extend name (Rec { (* name;  *) bound; body = let_body }) env)
 
 and eval_bop bop v1 v2 =
   match (bop, v1, v2) with

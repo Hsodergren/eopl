@@ -14,6 +14,7 @@ rule tokenize = parse
   | "minus" {NEG}
   | "let" {LET}
   | "let*" {LETSTAR}
+  | "letrec" {LETREC}
   | "in" {IN}
   | "(" {LPAREN}
   | "[" {LBRACK}

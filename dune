@@ -1,3 +1,9 @@
 (executable
- (name let)
+ (name proc)
+ (modules proc)
  (libraries lib))
+
+(tests
+ (names test)
+ (modules test)
+ (libraries alcotest lib))

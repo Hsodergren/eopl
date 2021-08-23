@@ -1,13 +1,22 @@
-
 type value =
   | Int of int [@printer fun fmt -> fprintf fmt "%d"]
   | Bool of bool [@printer fun fmt -> fprintf fmt "%b"]
-  | Proc of (value -> value)
+  | Proc of string * t * value Env.t [@printer fun fmt _ -> fprintf fmt "<fun>"]
   | Nil [@printer fun fmt () -> fprintf fmt "Nil"]
-  | Cons of t * t [@printer fun fmt (a,b) -> fprintf fmt "(%s, %s)" (show a) (show b)]
-[@@deriving show {with_path = false}]
+  | Cons of value * value
+      [@printer
+        fun fmt (a, b) -> fprintf fmt "(%s, %s)" (show_value a) (show_value b)]
+[@@deriving show]
 
-and bin_op = (value -> value -> value) [@@deriving show]
+and bin_op =
+  | Add
+  | Sub
+  | Mul
+  | Div
+  | EQ
+  | GT
+  | LT
+[@@deriving show]
 
 and t =
   | If of t * t * t
@@ -16,6 +25,7 @@ and t =
   | Unpack of string list * t * t
   | BinOp of bin_op * t * t
   | Procedure of string * t
+  | ConsT of t * t
   | Apply of t * t
   | Zero of t
   | Car of t
@@ -26,108 +36,78 @@ and t =
   | Val of value [@printer fun fmt v -> fprintf fmt "%s" (show_value v)]
 [@@deriving show]
 
-let int_bin_op f str v1 v2 =
-  match v1, v2 with
-  | Int i1, Int i2 -> Int (f i1 i2)
-  | _ -> failwith ("only int values allowed: "  ^ str)
+let equal_value v1 v2 =
+  match (v1, v2) with
+  | Proc _, Proc _ -> failwith "cannot compare functions"
+  | v1, v2 -> v1 = v2
 
-let cmp int_cmp bool_cmp str v1 v2 =
-  match v1, v2 with
-  | Int i1, Int i2 -> Bool (int_cmp i1 i2)
-  | Bool b1, Bool b2 -> Bool (bool_cmp b1 b2)
-  | _, _ -> failwith ("can only compare values of same type "  ^ str)
-
-let (<+>) = int_bin_op (+) "plus"
-let (<->) = int_bin_op (-) "minus"
-let (<*>) = int_bin_op ( * ) "mult"
-let (</>) = int_bin_op (/) "div"
-
-let (<=>) = cmp (=) (=) "equal"
-let (<>>) = cmp (>) (>) "gt"
-let (<<>) = cmp (<) (<) "lt"
-
-let rec eval_env ast env =
+let rec eval_env ast env : value =
   print_endline @@ show ast;
   match ast with
-  | BinOp (f,e1,e2) -> begin
-      match eval_env e1 env, eval_env e2 env with
-      | Val v1, Val v2 -> Val (f v1 v2)
-      | _ -> failwith "invalid binop"
-    end
-  | Car e -> begin
+  | BinOp (bop, e1, e2) -> eval_bop bop (eval_env e1 env) (eval_env e2 env)
+  | Car e -> (
       match eval_env e env with
-      | Val (Cons (e,_)) -> eval_env e env
-      | _ -> failwith "car only valid on cons"
-    end
-  | Cdr e -> begin
+      | Cons (e, _) -> e
+      | _ -> failwith "car only valid on cons")
+  | Cdr e -> (
       match eval_env e env with
-      | Val(Cons (_,e)) -> eval_env e env
-      | _ -> failwith "cdr only valid on cons"
-    end
-  | Null e -> begin
+      | Cons (_, e) -> e
+      | _ -> failwith "cdr only valid on cons")
+  | Null e -> (
       match eval_env e env with
-      | Val (Nil) -> Val (Bool true)
-      | _ -> Val (Bool false)
-    end
-  | If (pred,e1,e2) -> begin
+      | Nil -> Bool true
+      | _ -> Bool false)
+  | If (pred, e1, e2) -> (
       let eval_pred = eval_env pred env in
       match eval_pred with
-      | Val(Bool true) -> eval_env e1 env
-      | Val(Bool false) -> eval_env e2 env
-      | _ -> failwith "if predicate not bool"
-    end
-  | Var c -> begin
+      | Bool true -> eval_env e1 env
+      | Bool false -> eval_env e2 env
+      | _ -> failwith "if predicate not bool")
+  | Var c -> (
       match Env.get c env with
-      | Some v -> Val v
-      | None -> failwith @@ Printf.sprintf "%s not in environment" c
-    end
-  | Procedure (c,body) -> begin
-      Val (Proc (fun v ->
-          match eval_env body (Env.extend c v env) with
-          | Val v -> v
-          | _ -> failwith "procedure must return value"
-        ))
-  end
-  | Apply (e1,e2) -> begin
-      match eval_env e1 env, eval_env e2 env with
-      | Val (Proc f), Val v -> Val (f v)
-      | _, _ -> failwith "first eval must be procedure"
-    end
-  | Val s as v -> begin
-      match s with
-      | Int _ | Bool _ | Nil | Proc _ -> v
-      | Cons (e1,e2) -> Val(Cons(eval_env e1 env, eval_env e2 env))
-    end
-  | Zero e -> begin
+      | Some v -> v
+      | None -> failwith @@ Printf.sprintf "%s not in environment" c)
+  | Procedure (c, body) -> Proc (c, body, env)
+  | Apply (e1, e2) -> (
+      match (eval_env e1 env, eval_env e2 env) with
+      | Proc (c, body, cap_env), v -> eval_env body (Env.extend c v cap_env)
+      | _, _ -> failwith "first eval must be procedure")
+  | Val s -> s
+  | Zero e -> (
       match eval_env e env with
-      | Val(Int v) -> Val (Bool (v = 0))
-      | _ -> failwith "Zero not int expression"
-    end
-  | Neg e -> begin
+      | Int v -> Bool (v = 0)
+      | _ -> failwith "Zero not int expression")
+  | Neg e -> (
       match eval_env e env with
-      | Val(Int i) -> Val(Int (-i))
-      | _ -> failwith "Neg not int"
-    end
-  | Let (c,v,body) -> begin
-    match eval_env v env with
-    | Val a -> eval_env body (Env.extend c a env)
-    | _ -> failwith "let value not value"
-  end
-  | LetStar ((c,t)::tl,body) -> eval_env (LetStar (tl, Let(c,t,body))) env
-  | LetStar ([],body) -> eval_env body env
-  | Unpack (cs,t,body) -> begin
-    let t = eval_env t env in
-    match cs,t with
-    | [],Val Nil -> eval_env body env
-    | c::cs', Val (Cons (e1, e2)) -> eval_env (Unpack (cs', e2, Let(c,e1,body))) env
-    | [], Val( Cons _) -> failwith "too many values in list"
-    | _, Val (Nil) -> failwith "too many variables on left hand side"
-    | _ -> failwith "Invalid value"
-  end
+      | Int i -> Int (-i)
+      | _ -> failwith "Neg not int")
+  | Let (c, v, body) -> eval_env body (Env.extend c (eval_env v env) env)
+  | LetStar ((c, t) :: tl, body) ->
+      eval_env (LetStar (tl, Let (c, t, body))) env
+  | LetStar ([], body) -> eval_env body env
+  | Unpack (cs, t, body) -> (
+      let t = eval_env t env in
+      match (cs, t) with
+      | [], Nil -> eval_env body env
+      | c :: cs', Cons (e1, e2) ->
+          eval_env (Unpack (cs', Val e2, Let (c, Val e1, body))) env
+      | [], Cons _ -> failwith "too many values in list"
+      | _, Nil -> failwith "too many variables on left hand side"
+      | _ -> failwith "Invalid value")
+  | ConsT (t1, t2) -> Cons (eval_env t1 env, eval_env t2 env)
+
+and eval_bop bop v1 v2 =
+  match (bop, v1, v2) with
+  | Add, Int i1, Int i2 -> Int (i1 + i2)
+  | Sub, Int i1, Int i2 -> Int (i1 - i2)
+  | Div, Int i1, Int i2 -> Int (i1 / i2)
+  | Mul, Int i1, Int i2 -> Int (i1 * i2)
+  | EQ, _, _ -> Bool (v1 = v2)
+  | LT, Int i1, Int i2 -> Bool (i1 < i2)
+  | GT, Int i1, Int i2 -> Bool (i1 > i2)
+  | _ -> failwith "invalid binop"
 
 let eval ast =
   match eval_env ast Env.empty with
-  | Val v -> v
-  | _ -> failwith "error"
-
-  
+  | v -> v
+  | exception e -> failwith (Printexc.to_string e)

@@ -1,3 +1,9 @@
+type typ =
+  | IntT
+  | BoolT
+  | Arrow of typ * typ
+[@@deriving eq, show]
+
 type env_val =
   | Value of value
   | Rec of {
@@ -5,11 +11,6 @@ type env_val =
       bound : id;
       body : t;
     }
-
-and typ =
-  | IntT
-  | BoolT
-  | Arrow of typ * typ
 
 and value =
   | Int of int [@printer fun fmt -> fprintf fmt "%d"]
@@ -19,7 +20,6 @@ and value =
   | Cons of value * value
       [@printer
         fun fmt (a, b) -> fprintf fmt "(%s, %s)" (show_value a) (show_value b)]
-[@@deriving show]
 
 and bin_op =
   | Add
@@ -29,7 +29,6 @@ and bin_op =
   | EQ
   | GT
   | LT
-[@@deriving show]
 
 and id = string * typ
 
@@ -52,10 +51,80 @@ and t =
   | Val of value [@printer fun fmt v -> fprintf fmt "%s" (show_value v)]
 [@@deriving show]
 
+exception Type_err of t
+let eq_type t1 t2 e = if equal_typ t1 t2 then () else raise (Type_err e)
+
 let equal_value v1 v2 =
   match (v1, v2) with
   | Proc _, Proc _ -> failwith "cannot compare functions"
   | v1, v2 -> v1 = v2
+
+let rec type_check ast tenv =
+  match ast with
+  | Var name -> (
+      match Env.get name tenv with
+      | Some t -> t
+      | None -> failwith "unbound variable")
+  | Val (Int _) -> IntT
+  | Val (Bool _) -> BoolT
+  | Val (Proc ((_, typ), t, _)) -> Arrow (typ, type_check t tenv)
+  | Val _ -> failwith "only basic types and function for now, TODO lists"
+  | BinOp (binop, t1, t2) -> type_check_binop binop t1 t2 tenv
+  | Zero t ->
+      eq_type (type_check t tenv) IntT t;
+      BoolT
+  | Let ((name, _typ), exp, body) ->
+      let env = Env.extend name (type_check exp tenv) tenv in
+      type_check body env
+  | If (e1, e2, e3) ->
+      let tc t = type_check t tenv in
+      let t1, t2, t3 = (tc e1, tc e2, tc e3) in
+      eq_type t1 BoolT e1;
+      eq_type t2 t3 ast;
+      t2
+  | Procedure ((name, typ), e) ->
+      let e_typ = type_check e (Env.extend name typ tenv) in
+      Arrow (typ, e_typ)
+  | Apply (f_exp, op_exp) -> (
+      let f_typ = type_check f_exp tenv in
+      match f_typ with
+      | IntT
+      | BoolT ->
+          failwith "type error, apply non function"
+      | Arrow (t1, t2) ->
+          let op_typ = type_check op_exp tenv in
+          eq_type t1 op_typ op_exp;
+          t2)
+  | LetStar (_, _) -> failwith "todo"
+  | Unpack (_, _, _) -> failwith "todo"
+  | LetRec (_, _)
+  | ConsT (_, _)
+  | Car _
+  | Cdr _
+  | Null _
+  | Neg _ ->
+      failwith "a"
+
+and type_check_binop binop t1 t2 tenv =
+  match binop with
+  | Add
+  | Mul
+  | Div
+  | Sub ->
+      eq_type (type_check t1 tenv) IntT t1;
+      eq_type (type_check t2 tenv) IntT t2;
+      IntT
+  | EQ ->
+      let typ1 = type_check t1 tenv in
+      eq_type typ1 (type_check t2 tenv) (BinOp (EQ, t1, t2));
+      BoolT
+  | LT
+  | GT ->
+      eq_type (type_check t1 tenv) BoolT t1;
+      eq_type (type_check t2 tenv) BoolT t2;
+      BoolT
+
+let type_check ast = type_check ast Env.empty
 
 let rec eval_env ast env : value =
   (* print_endline @@ show ast; *)

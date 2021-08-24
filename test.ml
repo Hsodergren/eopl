@@ -1,3 +1,4 @@
+let type_testable = Alcotest.testable Lib.pp_typ Lib.equal_typ
 let value_testable = Alcotest.testable Lib.pp_value Lib.equal_value
 
 let test name prog value =
@@ -8,10 +9,30 @@ let test name prog value =
 let test_int name prog value = test name prog (Int value)
 let test_bool name prog value = test name prog (Bool value)
 
+let t_test name prog typ =
+  Alcotest.(
+    test_case name `Quick (fun () ->
+        check type_testable "type_check" typ Lib.(of_string prog |> type_check)))
+
+let type_int name prog = t_test name prog IntT
+let type_bool name prog = t_test name prog BoolT
+
 let () =
   let open Alcotest in
   run "Progs"
     [
+      ( "type",
+        [
+          type_int "simple int" "1";
+          type_bool "simple bool" "true";
+          t_test "simple proc" "proc ((x:int)) true" (Arrow (IntT, BoolT));
+          type_int "add" "+(1,1)";
+          type_bool "zero" "zero?(1)";
+          type_bool "equal" "equal?(1,2)";
+          type_int "if" "if true then 1 else 2";
+          type_bool "if2" "if true then true else false";
+          type_int "let" "let (a:int) = 2 in +(a,a)";
+        ] );
       ( "eval",
         [
           test_int "add" "+(1,2) " 3;

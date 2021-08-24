@@ -35,7 +35,6 @@ and id = string * typ
 and t =
   | If of t * t * t
   | Let of string * t * t
-  | LetStar of (string * t) list * t
   | Unpack of string list * t * t
   | BinOp of bin_op * t * t
   | LetRec of (typ * string * t) list * t
@@ -95,7 +94,6 @@ let rec type_check ast tenv =
           let op_typ = type_check op_exp tenv in
           eq_type t1 op_typ op_exp;
           t2)
-  | LetStar (_, _) -> failwith "todo"
   | Unpack (_, _, _) -> failwith "todo"
   | LetRec (_, _)
   | ConsT (_, _)
@@ -170,9 +168,6 @@ let rec eval_env ast env : value =
       | _ -> failwith "Neg not int")
   | Let (c, v, body) ->
       eval_env body (Env.extend c (Value (eval_env v env)) env)
-  | LetStar ((c, t) :: tl, body) ->
-      eval_env (LetStar (tl, Let (c, t, body))) env
-  | LetStar ([], body) -> eval_env body env
   | LetRec (recs, body) ->
       let rec extend_env recs env =
         match recs with

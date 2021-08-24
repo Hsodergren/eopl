@@ -32,6 +32,7 @@ let () =
           type_int "if" "if true then 1 else 2";
           type_bool "if2" "if true then true else false";
           type_int "let" "let a = 2 in +(a,a)";
+          type_bool "let*" "let* a=2 b=true in equal?(equal?(4,+(a,a)),b)";
         ] );
       ( "eval",
         [

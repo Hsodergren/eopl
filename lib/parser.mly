@@ -50,7 +50,10 @@ exp:
   | NULL LPAREN e=exp RPAREN {Null e}
   | LIST LPAREN es=explist_comma RPAREN {es}
   | LET id=ID ASSIGN e1=exp IN e2=exp {Let (id,e1,e2)}
-  | LETSTAR es=assignlist IN body=exp {LetStar (List.rev es,body)}
+  | LETSTAR es=assignlist IN body=exp
+    {
+      List.fold_right (fun (id,e) body -> Let(id,e,body)) es body
+    }
   | LETREC recs=letrecs IN body=exp {LetRec (recs, body)}
   | ZERO LPAREN e=exp RPAREN {Zero e}
   | UNPACK cs=idlist ASSIGN e=exp IN body=exp {Unpack (cs,e,body)}

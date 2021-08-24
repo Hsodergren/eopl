@@ -22,7 +22,7 @@
 
 %%
 
-program	:
+program:
   | exp EOF {$1}
 
 exp:

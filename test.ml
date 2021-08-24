@@ -47,6 +47,7 @@ let () =
           test_int "proc" "let square = proc (x) *(x,x) in (square 2)" 4;
           test_int "proc2" "let square = proc (x,y) *(x,y) in (square 2 3)" 6;
           test_int "let*" "let* a=1 b=2 c=3 in +(a,+(b,c))" 6;
+          test_int "letrec0" "letrec in 4" 4;
           test_int "letrec1" "letrec f (x) = +(x,x) in 4" 4;
           test_int "letrec2" "letrec f (x) = +(x,x) in (f 2)" 4;
           test_int "letrec3"
@@ -54,17 +55,17 @@ let () =
              (fac 4)"
             24;
           test_int "letrec4"
-            "letrec double(x) = if zero?(x) then 0 else -((double -(x,1)), -2) \
+            "letrec double(x) = if zero?(x) then 0 else +((double -(x,1)), 2) \
              in (double 6)"
             12;
-          test_int "letrec4" "letrec double(x,y) = +(x,x) in (double 1 100)" 2;
+          test_int "letrec4" "letrec plus(x,y) = +(x,y) in (plus 1 100)" 101;
           test_int "letrec5"
             "let double = proc(x) letrec double(x,y) = if zero?(x) then y else \
              (double -(x,1) +(y,2)) in (double x 0) in (double 10)"
             20;
           test_bool "letrec6"
             "letrec even(x) = if zero?(x) then true else (odd -(x,1)) odd(x) = \
-             if zero?(x) then false else (even -(x,1)) in (even 6)"
+             if zero?(x) then false else (even -(x,1)) in (even 100)"
             true;
         ] );
     ]

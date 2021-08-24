@@ -20,6 +20,7 @@ rule tokenize = parse
   | "[" {LBRACK}
   | ")" {RPAREN}
   | "]" {RBRACK}
+  | ":" {COLON}
   | "," { COMMA }
   | "=" {ASSIGN}
   | "true" {BOOL true}
@@ -40,6 +41,9 @@ rule tokenize = parse
   | "+" {PLUS}
   | "*" {MULT}
   | "/" {DIV}
+  | "int" {TINT}
+  | "bool" {TBOOL}
+  | "->" {ARROW}
   | number+ as i { INT (int_of_string i) }
   | alphanumeric+ as c { ID c }
   | whitespace {tokenize lexbuf}

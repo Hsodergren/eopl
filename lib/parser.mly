@@ -5,9 +5,10 @@
 %token <int> INT
 %token <bool> BOOL
 %token <string> ID
+%token TINT TBOOL ARROW
 %token NIL CONS
 %token PROC
-%token COMMA LPAREN RPAREN LBRACK RBRACK
+%token COMMA LPAREN RPAREN LBRACK RBRACK COLON
 %token ASSIGN
 %token EQ GT LT
 %token MINUS PLUS MULT DIV NEG
@@ -48,12 +49,9 @@ exp:
   | CDR LPAREN e=exp RPAREN {Cdr e}
   | NULL LPAREN e=exp RPAREN {Null e}
   | LIST LPAREN es=explist_comma RPAREN {es}
-  | LET c=ID ASSIGN e1=exp IN e2=exp {Let (c,e1,e2)}
+  | LET id_t=var_decl ASSIGN e1=exp IN e2=exp {Let (id_t,e1,e2)}
   | LETSTAR es=assignlist IN body=exp {LetStar (List.rev es,body)}
-  | LETREC recs=letrecs IN body=exp
-    {
-      LetRec (recs, body)
-    }
+  | LETREC recs=letrecs IN body=exp {LetRec (recs, body)}
   | ZERO LPAREN e=exp RPAREN {Zero e}
   | UNPACK cs=idlist ASSIGN e=exp IN body=exp {Unpack (cs,e,body)}
   | CONS LPAREN e1=exp COMMA e2=exp RPAREN {ConsT(e1,e2)}
@@ -63,24 +61,34 @@ exp:
   | MINUS i = INT {Val (Int (-i))}
   | i = INT {Val (Int i)}
 
+typ:
+  | TINT {IntT}
+  | TBOOL {BoolT}
+  | t1=typ ARROW t2=typ { Arrow (t1,t2) }
+  | LPAREN t=typ RPAREN { t }
+
+var_decl:
+  | LPAREN id=ID COLON t=typ RPAREN {id,t}
+
 letrecs:
   | {[]}
-  | name=ID LPAREN cs=idlist_comma RPAREN ASSIGN let_body=exp tl=letrecs
+  | ret=typ name=ID LPAREN cs=idlist_comma RPAREN ASSIGN let_body=exp tl=letrecs
     {
       let let_body = List.fold_right (fun v acc -> Procedure(v, acc)) cs let_body in
-      (name,let_body)::tl
+      (ret,name,let_body)::tl
     }
+
 idlist:
   | {[]}
-  | c=ID cs=idlist {c::cs}
+  | id_t=var_decl cs=idlist {id_t::cs}
 
 idlist_comma:
-  | c=ID {[c]}
-  | c=ID COMMA cs=idlist_comma {c::cs}
+  | id_t=var_decl {[id_t]}
+  | id_t=var_decl COMMA cs=idlist_comma {id_t::cs}
 
 assignlist:
   | {[]}
-  | c=ID ASSIGN e=exp l=assignlist {(c,e)::l}
+  | id_t=var_decl ASSIGN e=exp l=assignlist {(id_t,e)::l}
 
 explist:
   | e=exp {[e]}

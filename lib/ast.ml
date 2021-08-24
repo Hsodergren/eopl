@@ -34,9 +34,9 @@ and id = string * typ
 
 and t =
   | If of t * t * t
-  | Let of id * t * t
-  | LetStar of (id * t) list * t
-  | Unpack of (string * typ) list * t * t
+  | Let of string * t * t
+  | LetStar of (string * t) list * t
+  | Unpack of string list * t * t
   | BinOp of bin_op * t * t
   | LetRec of (typ * string * t) list * t
   | Procedure of id * t
@@ -73,7 +73,7 @@ let rec type_check ast tenv =
   | Zero t ->
       eq_type (type_check t tenv) IntT t;
       BoolT
-  | Let ((name, _typ), exp, body) ->
+  | Let (name, exp, body) ->
       let env = Env.extend name (type_check exp tenv) tenv in
       type_check body env
   | If (e1, e2, e3) ->
@@ -168,10 +168,10 @@ let rec eval_env ast env : value =
       match eval_env e env with
       | Int i -> Int (-i)
       | _ -> failwith "Neg not int")
-  | Let ((c, _), v, body) ->
+  | Let (c, v, body) ->
       eval_env body (Env.extend c (Value (eval_env v env)) env)
-  | LetStar (((c, typ), t) :: tl, body) ->
-      eval_env (LetStar (tl, Let ((c, typ), t, body))) env
+  | LetStar ((c, t) :: tl, body) ->
+      eval_env (LetStar (tl, Let (c, t, body))) env
   | LetStar ([], body) -> eval_env body env
   | LetRec (recs, body) ->
       let rec extend_env recs env =
@@ -187,8 +187,8 @@ let rec eval_env ast env : value =
       let t = eval_env t env in
       match (cs, t) with
       | [], Nil -> eval_env body env
-      | (id, t) :: cs', Cons (e1, e2) ->
-          eval_env (Unpack (cs', Val e2, Let ((id, t), Val e1, body))) env
+      | id :: cs', Cons (e1, e2) ->
+          eval_env (Unpack (cs', Val e2, Let (id, Val e1, body))) env
       | [], Cons _ -> failwith "too many values in list"
       | _, Nil -> failwith "too many variables on left hand side"
       | _ -> failwith "Invalid value")

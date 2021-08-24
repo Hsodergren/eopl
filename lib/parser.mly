@@ -49,7 +49,7 @@ exp:
   | CDR LPAREN e=exp RPAREN {Cdr e}
   | NULL LPAREN e=exp RPAREN {Null e}
   | LIST LPAREN es=explist_comma RPAREN {es}
-  | LET id_t=var_decl ASSIGN e1=exp IN e2=exp {Let (id_t,e1,e2)}
+  | LET id=ID ASSIGN e1=exp IN e2=exp {Let (id,e1,e2)}
   | LETSTAR es=assignlist IN body=exp {LetStar (List.rev es,body)}
   | LETREC recs=letrecs IN body=exp {LetRec (recs, body)}
   | ZERO LPAREN e=exp RPAREN {Zero e}
@@ -80,15 +80,15 @@ letrecs:
 
 idlist:
   | {[]}
-  | id_t=var_decl cs=idlist {id_t::cs}
+  | id=ID cs=idlist {id::cs}
 
 idlist_comma:
-  | id_t=var_decl {[id_t]}
-  | id_t=var_decl COMMA cs=idlist_comma {id_t::cs}
+  | id=var_decl {[id]}
+  | id=var_decl COMMA cs=idlist_comma {id::cs}
 
 assignlist:
   | {[]}
-  | id_t=var_decl ASSIGN e=exp l=assignlist {(id_t,e)::l}
+  | id=ID ASSIGN e=exp l=assignlist {(id,e)::l}
 
 explist:
   | e=exp {[e]}

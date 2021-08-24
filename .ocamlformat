@@ -1,0 +1,8 @@
+version=0.19.0
+type-decl=sparse
+#align-cases=true
+break-cases=all
+space-around-lists=false
+module-item-spacing=preserve
+if-then-else=keyword-first
+let-and=sparse

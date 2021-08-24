@@ -33,11 +33,7 @@ and t =
   | LetStar of (string * t) list * t
   | Unpack of string list * t * t
   | BinOp of bin_op * t * t
-  | LetRec of {
-      name : string;
-      let_body : t;
-      body : t;
-    }
+  | LetRec of (string * t) list * t
   | Procedure of string * t
   | ConsT of t * t
   | Apply of t * t
@@ -102,10 +98,16 @@ let rec eval_env ast env : value =
   | LetStar ((c, t) :: tl, body) ->
       eval_env (LetStar (tl, Let (c, t, body))) env
   | LetStar ([], body) -> eval_env body env
-  | LetRec { name; let_body = Procedure (bound, let_body); body } ->
-      eval_env body
-        (Env.extend name (Rec { (* name;  *) bound; body = let_body }) env)
-  | LetRec _ -> failwith "not prodecure body error"
+  | LetRec (recs, body) ->
+      let rec extend_env recs env =
+        match recs with
+        | (name, Procedure (bound, body)) :: tl ->
+            let env = Env.extend name (Rec { bound; body }) env in
+            extend_env tl env
+        | [] -> env
+        | _ -> failwith "letrec without procedure"
+      in
+      eval_env body (extend_env recs env)
   | Unpack (cs, t, body) -> (
       let t = eval_env t env in
       match (cs, t) with

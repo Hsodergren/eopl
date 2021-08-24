@@ -62,5 +62,9 @@ let () =
             "let double = proc(x) letrec double(x,y) = if zero?(x) then y else \
              (double -(x,1) +(y,2)) in (double x 0) in (double 10)"
             20;
+          test_bool "letrec6"
+            "letrec even(x) = if zero?(x) then true else (odd -(x,1)) odd(x) = \
+             if zero?(x) then false else (even -(x,1)) in (even 6)"
+            true;
         ] );
     ]

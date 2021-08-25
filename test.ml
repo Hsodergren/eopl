@@ -48,6 +48,35 @@ let () =
              bool odd(x:int) = if zero?(x) then false else (even -(x,1)) in \
              (even 100)";
           (* type_test "cdr" "cdr(cons(1, cons(2,3)))" (List IntT); *)
+          type_int "letrec0" "letrec in 4";
+          type_int "letrec1" "letrec int f (x:int) = +(x,x) in 4";
+          type_int "letrec2" "letrec int f (x:int) = +(x,x) in (f 2)";
+          type_int "letrec3"
+            "letrec int fac (x:int) = if zero?(x) then 1 else *(x, (fac \
+             -(x,1))) in (fac 4)";
+          type_int "letrec4"
+            "letrec int double(x:int) = if zero?(x) then 0 else +((double \
+             -(x,1)), 2) in (double 6)";
+          type_int "letrec4"
+            "letrec int plus(x:int, y:int) = +(x,y) in (plus 1 100)";
+          type_int "letrec5"
+            "let double = proc(x:int) letrec int double(x:int,y:int) = if \
+             zero?(x) then y else (double -(x,1) +(y,2)) in (double x 0) in \
+             (double 10)";
+          type_bool "letrec6"
+            "letrec bool even(x:int) = if zero?(x) then true else (odd -(x,1)) \
+             bool odd(x:int) = if zero?(x) then false else (even -(x,1)) in \
+             (even 100)";
+          type_int "letrec7" "letrec int even() = 1 in even";
+          type_test "letrec8"
+            {|
+letrec
+  int applyn(f: int -> int, n:int, init:int) = if zero?(n) then init else (applyn f -(n,1) (f init))
+in
+let f = proc(x:int) +(x,1) in
+((applyn f 3) 2)
+|}
+            IntT;
         ] );
       ( "eval",
         [
@@ -86,6 +115,10 @@ let () =
           test_int "proc" "let square = proc (x:int) *(x,x) in (square 2)" 4;
           test_int "proc2"
             "let square = proc (x:int,y:int) *(x,y) in (square 2 3)" 6;
+          test_int "proc3"
+            "let f = proc(f:int -> int, x: int) (f x) in let a = proc(x:int) \
+             +(x,1) in (f a 4)"
+            5;
           test_int "let*" "let* a=1 b=2 c=3 in +(a,+(b,c))" 6;
           test_int "letrec0" "letrec in 4" 4;
           test_int "letrec1" "letrec int f (x:int) = +(x,x) in 4" 4;
@@ -110,5 +143,15 @@ let () =
              bool odd(x:int) = if zero?(x) then false else (even -(x,1)) in \
              (even 100)"
             true;
+          test_int "letrec7" "letrec int even() = 1 in even" 1;
+          test_int "letrec8"
+            {|
+letrec
+  int applyn(f: int -> int, n:int, init:int) = if zero?(n) then init else (applyn f -(n,1) (f init))
+in
+let f = proc(x:int) +(x,1) in
+(applyn f 3 0)
+|}
+            3;
         ] );
     ]

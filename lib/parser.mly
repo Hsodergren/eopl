@@ -77,8 +77,7 @@ letrecs:
   | {[]}
   | ret=typ name=ID LPAREN cs=idlist_comma RPAREN ASSIGN let_body=exp tl=letrecs
     {
-      let let_body = List.fold_right (fun v acc -> Procedure(v, acc)) cs let_body in
-      (ret,name,let_body)::tl
+      (ret,name,cs,let_body)::tl
     }
 
 idlist:
@@ -86,6 +85,7 @@ idlist:
   | id=ID cs=idlist {id::cs}
 
 idlist_comma:
+  | {[]}
   | id=var_decl {[id]}
   | id=var_decl COMMA cs=idlist_comma {id::cs}
 

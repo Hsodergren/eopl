@@ -9,10 +9,7 @@ type typ =
 
 type env_val =
   | Value of value
-  | Rec of {
-      bound : id;
-      body : t;
-    }
+  | Rec of t
 
 and value =
   | Int of int [@printer fun fmt -> fprintf fmt "%d"]
@@ -39,7 +36,7 @@ and t =
   | Let of string * t * t
   | Unpack of string list * t * t
   | BinOp of bin_op * t * t
-  | LetRec of (typ * string * t) list * t
+  | LetRec of (typ * string * id list * t) list * t
   | Procedure of id * t
   | ConsT of t * t
   | Apply of t * t
@@ -66,6 +63,9 @@ let equal_value v1 v2 =
   | Proc _, Proc _ -> failwith "cannot compare functions"
   | v1, v2 -> v1 = v2
 
+let body_of_varlist cs body =
+  List.fold_right (fun v acc -> Procedure (v, acc)) cs body
+
 let rec type_check ast tenv =
   match ast with
   | Var name -> (
@@ -89,12 +89,25 @@ let rec type_check ast tenv =
   | LetRec (recs, body) ->
       let rec extend_env recs tenv =
         match recs with
-        | (typ_ret, name, Procedure ((_, typ_in), _)) :: tl ->
-            Env.extend name (Arrow (typ_in, typ_ret)) (extend_env tl tenv)
+        | (typ_ret, name, ids, _body) :: tl ->
+            let typ =
+              List.fold_right (fun (_, t) acc -> Arrow (t, acc)) ids typ_ret
+            in
+            Env.extend name typ (extend_env tl tenv)
         | [] -> tenv
-        | _ -> failwith "error"
       in
+      (* Add all letrec functions with correct type *)
       let tenv = extend_env recs tenv in
+      List.iter
+        (fun (typ_ret, _, ids, body) ->
+          let tenv =
+            List.fold_left
+              (fun acc (name, typ) -> Env.extend name typ acc)
+              tenv ids
+          in
+          let rtyp = type_check body tenv in
+          eq_type rtyp typ_ret body)
+        recs;
       type_check body tenv
   | If (e1, e2, e3) ->
       let tc t = type_check t tenv in
@@ -181,7 +194,7 @@ let rec eval_env ast env : value =
   | Var c -> (
       match Env.get c env with
       | Some (Value v) -> v
-      | Some (Rec { bound; body; _ }) -> Proc (bound, body, env)
+      | Some (Rec t) -> eval_env t env
       | None -> failwith @@ Printf.sprintf "%s not in environment" c)
   | Procedure (c, body) -> Proc (c, body, env)
   | Apply (e1, e2) -> (
@@ -203,11 +216,11 @@ let rec eval_env ast env : value =
   | LetRec (recs, body) ->
       let rec extend_env recs env =
         match recs with
-        | (_, name, Procedure (bound, body)) :: tl ->
-            let env = Env.extend name (Rec { bound; body }) env in
+        | (_, name, cs, proc_body) :: tl ->
+            let proc_body = body_of_varlist cs proc_body in
+            let env = Env.extend name (Rec proc_body) env in
             extend_env tl env
         | [] -> env
-        | _ -> failwith "letrec without procedure"
       in
       eval_env body (extend_env recs env)
   | Unpack (cs, t, body) -> (

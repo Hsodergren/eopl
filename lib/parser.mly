@@ -71,7 +71,7 @@ typ:
   | LPAREN t=typ RPAREN { t }
 
 var_decl:
-  | LPAREN id=ID COLON t=typ RPAREN {id,t}
+  | id=ID COLON t=typ {id,t}
 
 letrecs:
   | {[]}

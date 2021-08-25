@@ -9,13 +9,13 @@ let test name prog value =
 let test_int name prog value = test name prog (Int value)
 let test_bool name prog value = test name prog (Bool value)
 
-let t_test name prog typ =
+let type_test name prog typ =
   Alcotest.(
     test_case name `Quick (fun () ->
         check type_testable "type_check" typ Lib.(of_string prog |> type_check)))
 
-let type_int name prog = t_test name prog IntT
-let type_bool name prog = t_test name prog BoolT
+let type_int name prog = type_test name prog IntT
+let type_bool name prog = type_test name prog BoolT
 
 let () =
   let open Alcotest in
@@ -25,7 +25,13 @@ let () =
         [
           type_int "simple int" "1";
           type_bool "simple bool" "true";
-          t_test "simple proc" "proc ((x:int)) true" (Arrow (IntT, BoolT));
+          type_test "simple proc" "proc (x:int) true" (Arrow (IntT, BoolT));
+          type_test "simple proc2"
+            "let equal = proc (x:int,y:int) equal?(x,y) in equal"
+            (Arrow (IntT, Arrow (IntT, BoolT)));
+          type_bool "simple proc3"
+            "let equal = proc (x:int,y:int) equal?(x,y) in (equal +(1,1) \
+             -(4,2))";
           type_int "add" "+(1,1)";
           type_bool "zero" "zero?(1)";
           type_bool "equal" "equal?(1,2)";
@@ -33,14 +39,25 @@ let () =
           type_bool "if2" "if true then true else false";
           type_int "let" "let a = 2 in +(a,a)";
           type_bool "let*" "let* a=2 b=true in equal?(equal?(4,+(a,a)),b)";
+          type_int "car" "car(cons(1,2))";
+          type_int "letrec1"
+            "letrec int fac (x:int) = if zero?(x) then 1 else *(x, (fac \
+             -(x,1))) in (fac 4)";
+          type_bool "letrec2"
+            "letrec bool even(x:int) = if zero?(x) then true else (odd -(x,1)) \
+             bool odd(x:int) = if zero?(x) then false else (even -(x,1)) in \
+             (even 100)";
+          (* type_test "cdr" "cdr(cons(1, cons(2,3)))" (List IntT); *)
         ] );
       ( "eval",
         [
           test_int "add" "+(1,2) " 3;
-          test_int "minus" "+(1,-2)" ~-1;
-          test_int "sub" "-(1,2)" ~-1;
+          test_int "sub" "+(1,-2)" ~-1;
+          test_int "sub2" "-(1,2)" ~-1;
           test_int "mul" "*(2,2)" 4;
           test_int "div" "/(2,2)" 1;
+          test_int "minus" "minus(2)" ~-2;
+          test_int "minus2" "minus(+(1,1))" ~-2;
           test_bool "zero_t" "zero?(0)" true;
           test_bool "zero_f" "zero?(1)" false;
           test_bool "eq_1" "equal?(1,1)" true;
@@ -65,33 +82,33 @@ let () =
             "unpack a b c = cons(1,cons(2,cons(3,nil))) in +(a,+(b,c))" 6;
           test_int "unpack2" "unpack a b c = list(1,2,3) in +(a,+(b,c))" 6;
           test_int "unpack3"
-            "let p = proc ((x:int)) list(x,x) in unpack a b = (p 2) in +(a,b)" 4;
-          test_int "proc" "let square = proc ((x:int)) *(x,x) in (square 2)" 4;
+            "let p = proc (x:int) list(x,x) in unpack a b = (p 2) in +(a,b)" 4;
+          test_int "proc" "let square = proc (x:int) *(x,x) in (square 2)" 4;
           test_int "proc2"
-            "let square = proc ((x:int),(y:int)) *(x,y) in (square 2 3)" 6;
+            "let square = proc (x:int,y:int) *(x,y) in (square 2 3)" 6;
           test_int "let*" "let* a=1 b=2 c=3 in +(a,+(b,c))" 6;
           test_int "letrec0" "letrec in 4" 4;
-          test_int "letrec1" "letrec int f ((x:int)) = +(x,x) in 4" 4;
-          test_int "letrec2" "letrec int f ((x:int)) = +(x,x) in (f 2)" 4;
+          test_int "letrec1" "letrec int f (x:int) = +(x,x) in 4" 4;
+          test_int "letrec2" "letrec int f (x:int) = +(x,x) in (f 2)" 4;
           test_int "letrec3"
-            "letrec int fac ((x:int)) = if zero?(x) then 1 else *(x, (fac \
+            "letrec int fac (x:int) = if zero?(x) then 1 else *(x, (fac \
              -(x,1))) in (fac 4)"
             24;
           test_int "letrec4"
-            "letrec int double((x:int)) = if zero?(x) then 0 else +((double \
+            "letrec int double(x:int) = if zero?(x) then 0 else +((double \
              -(x,1)), 2) in (double 6)"
             12;
           test_int "letrec4"
-            "letrec int plus((x:int),(y:int)) = +(x,y) in (plus 1 100)" 101;
+            "letrec int plus(x:int, y:int) = +(x,y) in (plus 1 100)" 101;
           test_int "letrec5"
-            "let double = proc((x:int)) letrec int double((x:int),(y:int)) = \
-             if zero?(x) then y else (double -(x,1) +(y,2)) in (double x 0) in \
+            "let double = proc(x:int) letrec int double(x:int,y:int) = if \
+             zero?(x) then y else (double -(x,1) +(y,2)) in (double x 0) in \
              (double 10)"
             20;
           test_bool "letrec6"
-            "letrec int even((x:int)) = if zero?(x) then true else (odd \
-             -(x,1)) int odd((x:int)) = if zero?(x) then false else (even \
-             -(x,1)) in (even 100)"
+            "letrec bool even(x:int) = if zero?(x) then true else (odd -(x,1)) \
+             bool odd(x:int) = if zero?(x) then false else (even -(x,1)) in \
+             (even 100)"
             true;
         ] );
     ]

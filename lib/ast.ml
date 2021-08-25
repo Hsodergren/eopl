@@ -1,13 +1,15 @@
 type typ =
   | IntT
   | BoolT
+  | List of typ (* not used well *)
   | Arrow of typ * typ
+      [@printer
+        fun fmt (a, b) -> fprintf fmt "%s -> %s" (show_typ a) (show_typ b)]
 [@@deriving eq, show]
 
 type env_val =
   | Value of value
   | Rec of {
-      (* name : string; *)
       bound : id;
       body : t;
     }
@@ -51,7 +53,13 @@ and t =
 [@@deriving show]
 
 exception Type_err of t
-let eq_type t1 t2 e = if equal_typ t1 t2 then () else raise (Type_err e)
+let eq_type t1 t2 e =
+  if equal_typ t1 t2
+  then ()
+  else
+    let err = Type_err e in
+    Format.fprintf Format.std_formatter "%a %a %a\n" pp e pp_typ t1 pp_typ t2;
+    raise err
 
 let equal_value v1 v2 =
   match (v1, v2) with
@@ -72,9 +80,22 @@ let rec type_check ast tenv =
   | Zero t ->
       eq_type (type_check t tenv) IntT t;
       BoolT
+  | Neg t ->
+      eq_type (type_check t tenv) IntT t;
+      IntT
   | Let (name, exp, body) ->
       let env = Env.extend name (type_check exp tenv) tenv in
       type_check body env
+  | LetRec (recs, body) ->
+      let rec extend_env recs tenv =
+        match recs with
+        | (typ_ret, name, Procedure ((_, typ_in), _)) :: tl ->
+            Env.extend name (Arrow (typ_in, typ_ret)) (extend_env tl tenv)
+        | [] -> tenv
+        | _ -> failwith "error"
+      in
+      let tenv = extend_env recs tenv in
+      type_check body tenv
   | If (e1, e2, e3) ->
       let tc t = type_check t tenv in
       let t1, t2, t3 = (tc e1, tc e2, tc e3) in
@@ -88,20 +109,31 @@ let rec type_check ast tenv =
       let f_typ = type_check f_exp tenv in
       match f_typ with
       | IntT
+      | List _
       | BoolT ->
           failwith "type error, apply non function"
       | Arrow (t1, t2) ->
           let op_typ = type_check op_exp tenv in
           eq_type t1 op_typ op_exp;
           t2)
-  | Unpack (_, _, _) -> failwith "todo"
-  | LetRec (_, _)
-  | ConsT (_, _)
-  | Car _
-  | Cdr _
+  | ConsT (e1, e2) ->
+      let t1 = type_check e1 tenv in
+      let t2 = type_check e2 tenv in
+      eq_type t1 t2 e2;
+      List t1
+  | Car e -> (
+      (* probably wrong *)
+      match type_check e tenv with
+      | List t -> t
+      | _ -> failwith "car of non list")
+  | Cdr e -> (
+      (* probably wrong *)
+      match type_check e tenv with
+      | List _ as t -> t
+      | _ -> failwith "cdr of non list")
   | Null _
-  | Neg _ ->
-      failwith "a"
+  | Unpack (_, _, _) ->
+      failwith "todo"
 
 and type_check_binop binop t1 t2 tenv =
   match binop with

@@ -35,6 +35,10 @@ let () =
           type_int "add" "+(1,1)";
           type_bool "zero" "zero?(1)";
           type_bool "equal" "equal?(1,2)";
+          type_bool "less_1" "less?(1,2)";
+          type_bool "less_2" "less?(1,0)";
+          type_bool "greater_1" "greater?(1,2)";
+          type_bool "greater_2" "greater?(1,0)";
           type_int "if" "if true then 1 else 2";
           type_bool "if2" "if true then true else false";
           type_int "let" "let a = 2 in +(a,a)";
@@ -73,8 +77,7 @@ let () =
 letrec
   int applyn(f: int -> int, n:int, init:int) = if zero?(n) then init else (applyn f -(n,1) (f init))
 in
-let f = proc(x:int) +(x,1) in
-((applyn f 3) 2)
+((applyn proc(x:int)+(x,1) 3) 2)
 |}
             IntT;
         ] );

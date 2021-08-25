@@ -163,8 +163,8 @@ and type_check_binop binop t1 t2 tenv =
       BoolT
   | LT
   | GT ->
-      eq_type (type_check t1 tenv) BoolT t1;
-      eq_type (type_check t2 tenv) BoolT t2;
+      eq_type (type_check t1 tenv) IntT t1;
+      eq_type (type_check t2 tenv) IntT t2;
       BoolT
 
 let type_check ast = type_check ast Env.empty
